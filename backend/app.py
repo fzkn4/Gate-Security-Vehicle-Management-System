@@ -128,6 +128,10 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and check_password_hash(user.password_hash, password):
+            # Only allow admin users to login
+            if user.role != 'admin':
+                return jsonify({'message': 'Access denied. Only administrators can login.'}), 403
+            
             # JWT identity must be a string
             access_token = create_access_token(identity=str(user.id))
             print(f"Token created for user {user.id} (username: {user.username})")

@@ -69,7 +69,8 @@ const Login = () => {
         </form>
         
         <div className="login-footer">
-          <p>Default: admin / admin123</p>
+          <p>Admin access only</p>
+          <p className="login-hint">Default: admin / admin123</p>
         </div>
       </div>
     </div>

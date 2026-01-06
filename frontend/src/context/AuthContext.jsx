@@ -25,12 +25,12 @@ export const AuthProvider = ({ children }) => {
     }
     setLoading(false)
 
-    // Add response interceptor to handle 401/422 errors
+    // Add response interceptor to handle 401/422/403 errors
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401 || error.response?.status === 422) {
-          // Token is invalid or expired
+        if (error.response?.status === 401 || error.response?.status === 422 || error.response?.status === 403) {
+          // Token is invalid, expired, or access denied
           localStorage.removeItem('token')
           localStorage.removeItem('user')
           delete axios.defaults.headers.common['Authorization']

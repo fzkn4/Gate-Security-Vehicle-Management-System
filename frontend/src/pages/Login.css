@@ -132,3 +132,12 @@
   font-size: 12px;
 }
 
+.login-footer p {
+  margin: 4px 0;
+}
+
+.login-hint {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
