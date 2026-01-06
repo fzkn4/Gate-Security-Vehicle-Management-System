@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import qrcode
 import io
 import base64
@@ -50,7 +50,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(50), default='user')  # admin, user
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     vehicles = db.relationship('Vehicle', backref='owner', lazy=True)
 
@@ -63,7 +63,7 @@ class Vehicle(db.Model):
     color = db.Column(db.String(50))
     qr_code = db.Column(db.Text, unique=True, nullable=False)  # Base64 QR code
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     entries = db.relationship('EntryLog', backref='vehicle', lazy=True, order_by='EntryLog.timestamp.desc()')
 
@@ -71,7 +71,7 @@ class EntryLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.id'), nullable=False)
     entry_type = db.Column(db.String(10), nullable=False)  # 'in' or 'out'
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     location = db.Column(db.String(100), default='Main Gate')
     notes = db.Column(db.Text)
 
@@ -159,7 +159,7 @@ def login():
 def register():
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     
     if current_user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
@@ -201,7 +201,7 @@ def get_users():
     try:
         # JWT identity is a string, convert to int for database lookup
         current_user_id = int(get_jwt_identity())
-        current_user = User.query.get(current_user_id)
+        current_user = db.session.get(User, current_user_id)
         
         if not current_user:
             return jsonify({'message': 'User not found'}), 404
@@ -250,7 +250,7 @@ def get_user(user_id):
 def update_user(user_id):
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     
     user = User.query.get_or_404(user_id)
     data = request.get_json()
@@ -281,7 +281,7 @@ def update_user(user_id):
 def delete_user(user_id):
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     
     if current_user.role != 'admin':
         return jsonify({'message': 'Admin access required'}), 403
@@ -298,7 +298,7 @@ def get_vehicles():
     try:
         # JWT identity is a string, convert to int for database lookup
         current_user_id = int(get_jwt_identity())
-        current_user = User.query.get(current_user_id)
+        current_user = db.session.get(User, current_user_id)
         
         if not current_user:
             return jsonify({'message': 'User not found'}), 404
@@ -331,7 +331,7 @@ def get_vehicles():
 def create_vehicle():
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     data = request.get_json()
     
     user_id = data.get('user_id', current_user_id)
@@ -384,7 +384,7 @@ def create_vehicle():
 def update_vehicle(vehicle_id):
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     
     vehicle = Vehicle.query.get_or_404(vehicle_id)
     
@@ -418,7 +418,7 @@ def update_vehicle(vehicle_id):
 def delete_vehicle(vehicle_id):
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
-    current_user = User.query.get(current_user_id)
+    current_user = db.session.get(User, current_user_id)
     
     vehicle = Vehicle.query.get_or_404(vehicle_id)
     
@@ -433,23 +433,57 @@ def delete_vehicle(vehicle_id):
 @app.route('/api/scan', methods=['POST'])
 @jwt_required()
 def scan_qr_code():
-    data = request.get_json()
-    qr_data = data.get('qr_data')
-    location = data.get('location', 'Main Gate')
-    
-    if not qr_data or not qr_data.startswith('VEHICLE:'):
-        return jsonify({'message': 'Invalid QR code'}), 400
-    
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'message': 'No data provided'}), 400
+            
+        qr_data = data.get('qr_data')
+        location = data.get('location', 'Main Gate')
+        
+        if not qr_data:
+            return jsonify({'message': 'QR code data is required'}), 400
+        
+        # Log the received QR data for debugging
+        print(f"Received QR data: {qr_data[:100]}...")  # Log first 100 chars
+        
+        # Check if it starts with VEHICLE:
+        if not qr_data.startswith('VEHICLE:'):
+            return jsonify({
+                'message': f'Invalid QR code format. Expected format: VEHICLE:ID:PLATE or VEHICLE:PLATE. Received: {qr_data[:50]}'
+            }), 400
+        
         parts = qr_data.split(':')
-        vehicle_id = int(parts[1])
-        vehicle = Vehicle.query.get(vehicle_id)
+        vehicle = None
+        
+        # Handle two formats:
+        # Format 1: VEHICLE:ID:PLATE (3 parts) - preferred format
+        # Format 2: VEHICLE:PLATE (2 parts) - fallback for old QR codes
+        if len(parts) >= 3:
+            # Format: VEHICLE:ID:PLATE
+            try:
+                vehicle_id = int(parts[1])
+                vehicle = db.session.get(Vehicle, vehicle_id)
+            except ValueError:
+                return jsonify({'message': f'Invalid vehicle ID in QR code: {parts[1]}'}), 400
+        elif len(parts) == 2:
+            # Format: VEHICLE:PLATE - look up by plate number
+            plate_number = parts[1]
+            vehicle = Vehicle.query.filter_by(plate_number=plate_number).first()
+            if not vehicle:
+                return jsonify({
+                    'message': f'Vehicle with plate number "{plate_number}" not found'
+                }), 404
+        else:
+            return jsonify({
+                'message': f'Invalid QR code format. Expected VEHICLE:ID:PLATE or VEHICLE:PLATE. Received: {qr_data}'
+            }), 400
         
         if not vehicle:
             return jsonify({'message': 'Vehicle not found'}), 404
         
         # Get the last entry for this vehicle
-        last_entry = EntryLog.query.filter_by(vehicle_id=vehicle_id).order_by(EntryLog.timestamp.desc()).first()
+        last_entry = EntryLog.query.filter_by(vehicle_id=vehicle.id).order_by(EntryLog.timestamp.desc()).first()
         
         # Determine entry type: if last entry was 'in', this is 'out', and vice versa
         if last_entry and last_entry.entry_type == 'in':
@@ -459,10 +493,10 @@ def scan_qr_code():
         
         # Create new entry log
         entry = EntryLog(
-            vehicle_id=vehicle_id,
+            vehicle_id=vehicle.id,
             entry_type=entry_type,
             location=location,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         
         db.session.add(entry)
@@ -482,8 +516,11 @@ def scan_qr_code():
             }
         }), 200
         
-    except (ValueError, IndexError):
-        return jsonify({'message': 'Invalid QR code format'}), 400
+    except Exception as e:
+        print(f"Error in scan_qr_code: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 # Test endpoint to verify token
 @app.route('/api/test-token', methods=['GET'])
@@ -492,7 +529,7 @@ def test_token():
     try:
         # JWT identity is a string, convert to int for database lookup
         current_user_id = int(get_jwt_identity())
-        current_user = User.query.get(current_user_id)
+        current_user = db.session.get(User, current_user_id)
         return jsonify({
             'message': 'Token is valid',
             'user_id': current_user_id,
@@ -511,7 +548,7 @@ def get_entries():
     try:
         # JWT identity is a string, convert to int for database lookup
         current_user_id = int(get_jwt_identity())
-        current_user = User.query.get(current_user_id)
+        current_user = db.session.get(User, current_user_id)
         
         if not current_user:
             return jsonify({'message': 'User not found'}), 404
@@ -566,7 +603,7 @@ def get_stats():
     try:
         # JWT identity is a string, convert to int for database lookup
         current_user_id = int(get_jwt_identity())
-        current_user = User.query.get(current_user_id)
+        current_user = db.session.get(User, current_user_id)
         
         if not current_user:
             return jsonify({'message': 'User not found'}), 404
@@ -581,7 +618,7 @@ def get_stats():
         entries_out = query.filter_by(entry_type='out').count()
         
         # Get today's entries
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         today_entries = query.filter(
             db.func.date(EntryLog.timestamp) == today
         ).count()
