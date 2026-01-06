@@ -37,6 +37,12 @@ const Layout = () => {
     <div className="layout">
       <header className="header">
         <div className="header-content">
+          <div className="header-logo">
+            <div className="logo-icon-wrapper">
+              <FiTruck className="logo-icon" />
+            </div>
+            <span className="logo-text">Gate Security</span>
+          </div>
           <div className="header-actions">
             <button className="header-btn create-btn">Create</button>
             <button className="header-icon-btn">
@@ -54,13 +60,6 @@ const Layout = () => {
 
       <div className="main-container">
         <aside className="sidebar">
-          <div className="sidebar-logo">
-            <div className="logo-icon-wrapper">
-              <FiTruck className="logo-icon" />
-            </div>
-            <span className="logo-text">Gate Security</span>
-          </div>
-          
           <nav className="sidebar-nav">
             {menuItems.map((item) => {
               const IconComponent = item.icon

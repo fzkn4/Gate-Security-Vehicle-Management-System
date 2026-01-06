@@ -20,9 +20,15 @@
 .header-content {
   width: 100%;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   gap: 24px;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .header-actions {
@@ -101,33 +107,26 @@
   overflow: hidden;
 }
 
-.sidebar-logo {
-  padding: 24px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid #E5E7EB;
-}
 
 .logo-icon-wrapper {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #1F2937;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .logo-icon {
-  font-size: 20px;
+  font-size: 18px;
   color: white;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .logo-text {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: #111827;
 }
