@@ -259,14 +259,61 @@
   border: 1px solid #E5E7EB;
 }
 
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .chart-title {
   font-size: 18px;
   font-weight: 600;
   color: #111827;
-  margin-bottom: 20px;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.chart-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.period-filter {
+  appearance: none;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 8px 32px 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 140px;
+}
+
+.period-filter:hover {
+  border-color: #D1D5DB;
+}
+
+.period-filter:focus {
+  outline: none;
+  border-color: #1F2937;
+  box-shadow: 0 0 0 3px rgba(31, 41, 55, 0.1);
+}
+
+.filter-chevron {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #6B7280;
+  font-size: 16px;
 }
 
 @media (max-width: 1200px) {
