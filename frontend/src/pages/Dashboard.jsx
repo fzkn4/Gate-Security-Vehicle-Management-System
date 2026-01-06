@@ -288,20 +288,22 @@ const Dashboard = () => {
               />
               <Legend />
               <Line 
-                type="monotone" 
+                type="natural" 
                 dataKey="in" 
                 stroke="#4CAF50" 
                 strokeWidth={2}
                 name="Entries"
                 dot={{ fill: '#4CAF50', r: 4 }}
+                activeDot={{ r: 6 }}
               />
               <Line 
-                type="monotone" 
+                type="natural" 
                 dataKey="out" 
                 stroke="#FF4C4C" 
                 strokeWidth={2}
                 name="Exits"
                 dot={{ fill: '#FF4C4C', r: 4 }}
+                activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
