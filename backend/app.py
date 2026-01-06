@@ -440,9 +440,29 @@ def scan_qr_code():
             
         qr_data = data.get('qr_data')
         location = data.get('location', 'Main Gate')
+        client_timestamp = data.get('timestamp')
         
         if not qr_data:
             return jsonify({'message': 'QR code data is required'}), 400
+        
+        # Use client's timestamp if provided, otherwise fall back to server time
+        if client_timestamp:
+            try:
+                # Parse the ISO timestamp from the client (includes timezone offset)
+                # Handle both 'Z' (UTC) notation and timezone offset notation
+                timestamp_str = client_timestamp.replace('Z', '+00:00')
+                scan_timestamp = datetime.fromisoformat(timestamp_str)
+                # If the timestamp doesn't have timezone info, assume it's UTC
+                if scan_timestamp.tzinfo is None:
+                    scan_timestamp = scan_timestamp.replace(tzinfo=timezone.utc)
+                print(f"Using client timestamp: {scan_timestamp} (from device: {client_timestamp})")
+            except (ValueError, AttributeError) as e:
+                print(f"Error parsing client timestamp '{client_timestamp}': {e}, using server time instead")
+                scan_timestamp = datetime.now(timezone.utc)
+        else:
+            # Fallback to server time if no timestamp provided (backward compatibility)
+            scan_timestamp = datetime.now(timezone.utc)
+            print(f"No client timestamp provided, using server time: {scan_timestamp}")
         
         # Log the received QR data for debugging
         print(f"Received QR data: {qr_data[:100]}...")  # Log first 100 chars
@@ -491,12 +511,12 @@ def scan_qr_code():
         else:
             entry_type = 'in'
         
-        # Create new entry log
+        # Create new entry log using the device's timestamp
         entry = EntryLog(
             vehicle_id=vehicle.id,
             entry_type=entry_type,
             location=location,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=scan_timestamp
         )
         
         db.session.add(entry)

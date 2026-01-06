@@ -78,9 +78,30 @@ const QRScanner = () => {
       setError('')
       setSuccess('')
       
+      // Get the current date/time from the device (local time)
+      // Create a date object and format it as ISO string with timezone offset
+      const now = new Date()
+      const timezoneOffset = -now.getTimezoneOffset() // Get offset in minutes
+      const offsetHours = Math.floor(Math.abs(timezoneOffset) / 60)
+      const offsetMinutes = Math.abs(timezoneOffset) % 60
+      const offsetSign = timezoneOffset >= 0 ? '+' : '-'
+      const offsetString = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`
+      
+      // Format as ISO string with local timezone
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const milliseconds = String(now.getMilliseconds()).padStart(3, '0')
+      
+      const deviceTimestamp = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offsetString}`
+      
       const response = await axios.post('/api/scan', {
         qr_data: qrData,
-        location: 'Main Gate'
+        location: 'Main Gate',
+        timestamp: deviceTimestamp
       })
       
       setSuccess(response.data.message)
