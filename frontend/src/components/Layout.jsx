@@ -10,8 +10,7 @@ import {
   FiSettings, 
   FiLogOut,
   FiUser,
-  FiBell,
-  FiMessageCircle
+  FiBell
 } from 'react-icons/fi'
 import './Layout.css'
 
@@ -44,12 +43,8 @@ const Layout = () => {
             <span className="logo-text">Gate Security</span>
           </div>
           <div className="header-actions">
-            <button className="header-btn create-btn">Create</button>
             <button className="header-icon-btn">
               <FiBell />
-            </button>
-            <button className="header-icon-btn">
-              <FiMessageCircle />
             </button>
             <div className="user-avatar">
               <FiUser />
