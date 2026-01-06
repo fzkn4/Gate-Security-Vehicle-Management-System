@@ -188,6 +188,17 @@ const Dashboard = () => {
 
   const pieData = allEntries.length > 0 ? getFilteredPieData() : []
 
+  const getTimeAgo = (date) => {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
+    return `${Math.floor(diffInSeconds / 604800)}w ago`
+  }
+
   if (loading) {
     return <div className="page-loading">Loading dashboard...</div>
   }
@@ -336,39 +347,72 @@ const Dashboard = () => {
       </div>
 
       <div className="recent-entries-section">
-        <h2>Recent Entries</h2>
+        <div className="section-header">
+          <h2>Recent Entries</h2>
+          <span className="entries-count">{recentEntries.length} entries</span>
+        </div>
         <div className="entries-list">
           {recentEntries.length === 0 ? (
-            <div className="empty-state">No entries yet</div>
+            <div className="empty-state">
+              <FiFileText className="empty-icon" />
+              <p>No entries yet</p>
+              <p className="empty-hint">Vehicle entries will appear here</p>
+            </div>
           ) : (
-            recentEntries.map((entry) => (
-              <div key={entry.id} className="entry-card">
-                <div className={`entry-icon ${entry.entry_type === 'in' ? 'icon-in' : 'icon-out'}`}>
-                  {entry.entry_type === 'in' ? (
-                    <FiLogIn className="entry-icon-svg" />
-                  ) : (
-                    <FiLogOut className="entry-icon-svg" />
-                  )}
+            recentEntries.map((entry) => {
+              const entryDate = new Date(entry.timestamp)
+              const timeAgo = getTimeAgo(entryDate)
+              
+              return (
+                <div key={entry.id} className={`entry-card ${entry.entry_type === 'in' ? 'entry-in' : 'entry-out'}`}>
+                  <div className={`entry-icon ${entry.entry_type === 'in' ? 'icon-in' : 'icon-out'}`}>
+                    {entry.entry_type === 'in' ? (
+                      <FiLogIn className="entry-icon-svg" />
+                    ) : (
+                      <FiLogOut className="entry-icon-svg" />
+                    )}
+                  </div>
+                  <div className="entry-content">
+                    <div className="entry-main">
+                      <div className="entry-primary">
+                        <div className="entry-plate-wrapper">
+                          <span className="plate-number">{entry.plate_number}</span>
+                          <span className={`entry-badge ${entry.entry_type === 'in' ? 'badge-in' : 'badge-out'}`}>
+                            {entry.entry_type === 'in' ? 'ENTRY' : 'EXIT'}
+                          </span>
+                        </div>
+                        <div className="entry-vehicle-info">
+                          <span className="vehicle-type">{entry.vehicle_type}</span>
+                          <span className="entry-separator">•</span>
+                          <span className="owner-name">{entry.owner_name}</span>
+                        </div>
+                      </div>
+                      <div className="entry-meta">
+                        <div className="entry-time-group">
+                          <span className="entry-time">{entryDate.toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit',
+                            hour12: true 
+                          })}</span>
+                          <span className="entry-date">{entryDate.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}</span>
+                        </div>
+                        <span className="time-ago">{timeAgo}</span>
+                      </div>
+                    </div>
+                    <div className="entry-footer">
+                      <div className="entry-location">
+                        <FiLocation className="location-icon" />
+                        <span>{entry.location}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="entry-details">
-                  <div className="entry-header">
-                    <span className="entry-type">{entry.entry_type.toUpperCase()}</span>
-                    <span className="entry-time">
-                      {new Date(entry.timestamp).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="entry-info">
-                    <span className="plate-number">{entry.plate_number}</span>
-                    <span className="vehicle-type">{entry.vehicle_type}</span>
-                    <span className="owner-name">{entry.owner_name}</span>
-                  </div>
-                  <div className="entry-location">
-                    <FiLocation className="location-icon" />
-                    {entry.location}
-                  </div>
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
