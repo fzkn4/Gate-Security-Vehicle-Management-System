@@ -38,7 +38,7 @@ const Layout = () => {
         <div className="header-content">
           <div className="header-logo">
             <div className="logo-icon-wrapper">
-              <FiTruck className="logo-icon" />
+              <div className="logo-icon"></div>
             </div>
             <span className="logo-text">Gate Security</span>
           </div>
