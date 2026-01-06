@@ -1,0 +1,215 @@
+.users-page {
+  max-width: 100%;
+  margin: 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.page-header p {
+  display: none;
+}
+
+.users-table-container {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid #E5E7EB;
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th {
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+  color: #111827;
+  border-bottom: 2px solid #E5E7EB;
+  font-size: 14px;
+}
+
+.users-table td {
+  padding: 12px;
+  border-bottom: 1px solid #E5E7EB;
+  font-size: 14px;
+  color: #6B7280;
+}
+
+.users-table tr:hover {
+  background: #F9FAFB;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-admin {
+  background: #FEE2E2;
+  color: #991B1B;
+}
+
+.role-user {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit {
+  background: #F3F4F6;
+  color: #111827;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-edit:hover {
+  background: #E5E7EB;
+}
+
+.btn-delete {
+  background: #FF4C4C;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-delete:hover {
+  background: #E03E3E;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #E5E7EB;
+}
+
+.modal-content h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.modal-content .form-group {
+  margin-bottom: 20px;
+}
+
+.modal-content label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+.modal-content input,
+.modal-content select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+  background: white;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+  outline: none;
+  border-color: #1F2937;
+}
+
+.modal-content input:disabled {
+  background: #F9FAFB;
+  cursor: not-allowed;
+  color: #9CA3AF;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+  background: #d0d0d0;
+}
+
+.unauthorized {
+  text-align: center;
+  padding: 40px;
+  color: #ff4c4c;
+  font-size: 18px;
+}
+
