@@ -223,3 +223,21 @@
   margin-bottom: 24px;
 }
 
+.qr-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.qr-modal-actions .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-modal-actions .btn-primary svg {
+  width: 16px;
+  height: 16px;
+}
+

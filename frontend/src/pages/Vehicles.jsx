@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { useAuth } from '../context/AuthContext'
-import { FiPlus, FiEdit, FiTrash2, FiMaximize2, FiTruck } from 'react-icons/fi'
+import { FiPlus, FiEdit, FiTrash2, FiMaximize2, FiTruck, FiDownload } from 'react-icons/fi'
 import './Vehicles.css'
 
 const Vehicles = () => {
@@ -78,6 +78,35 @@ const Vehicles = () => {
   const handleViewQR = (vehicle) => {
     setSelectedQR(vehicle)
     setShowQRModal(true)
+  }
+
+  const handleDownloadQR = () => {
+    if (!selectedQR || !selectedQR.qr_code) return
+    
+    try {
+      // Convert base64 to blob
+      const base64Data = selectedQR.qr_code.replace(/^data:image\/png;base64,/, '')
+      const byteCharacters = atob(base64Data)
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: 'image/png' })
+      
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `QR_Code_${selectedQR.plate_number.replace(/\s+/g, '_')}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading QR code:', error)
+      alert('Failed to download QR code')
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -289,9 +318,14 @@ const Vehicles = () => {
               />
             </div>
             <p className="qr-hint">Scan this QR code at the gate to record entry/exit</p>
-            <button className="btn-secondary" onClick={() => setShowQRModal(false)}>
-              Close
-            </button>
+            <div className="qr-modal-actions">
+              <button className="btn-primary" onClick={handleDownloadQR}>
+                <FiDownload /> Download QR Code
+              </button>
+              <button className="btn-secondary" onClick={() => setShowQRModal(false)}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
