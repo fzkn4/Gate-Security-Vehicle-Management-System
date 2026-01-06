@@ -33,7 +33,8 @@ const QRScanner = () => {
         { facingMode: "environment" },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 }
+          // Remove qrbox to scan entire camera view
+          // aspectRatio: 1.0 // Optional: maintain aspect ratio
         },
         (decodedText) => {
           handleScan(decodedText)
@@ -65,6 +66,15 @@ const QRScanner = () => {
 
   const handleScan = async (qrData) => {
     try {
+      // Pause scanning to prevent multiple simultaneous scans
+      if (html5QrCodeRef.current) {
+        try {
+          await html5QrCodeRef.current.pause()
+        } catch (pauseErr) {
+          // Ignore pause errors
+        }
+      }
+      
       setError('')
       setSuccess('')
       
@@ -88,6 +98,14 @@ const QRScanner = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to process QR code')
       console.error('Error scanning:', err)
+      // Resume scanning on error
+      if (html5QrCodeRef.current && scanning) {
+        try {
+          await html5QrCodeRef.current.resume()
+        } catch (resumeErr) {
+          // Ignore resume errors
+        }
+      }
     }
   }
 

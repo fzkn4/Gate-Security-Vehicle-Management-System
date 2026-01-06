@@ -96,6 +96,18 @@
   height: 100%;
 }
 
+/* Hide the scanning box overlay */
+.qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+/* Remove any scanning box borders/overlays */
+.qr-reader #qr-shaded-region {
+  display: none !important;
+}
+
 .scanner-placeholder {
   position: absolute;
   top: 0;
