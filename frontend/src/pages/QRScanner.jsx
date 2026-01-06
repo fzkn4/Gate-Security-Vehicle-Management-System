@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import axios from 'axios'
-import { FiCamera, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw } from 'react-icons/fi'
+import { FiCamera, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiSettings, FiMoreVertical } from 'react-icons/fi'
 import './QRScanner.css'
 
 const QRScanner = () => {
@@ -10,8 +10,73 @@ const QRScanner = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [scanCount, setScanCount] = useState(0)
+  const [cameras, setCameras] = useState([])
+  const [selectedCameraId, setSelectedCameraId] = useState(null)
+  const [showCameraMenu, setShowCameraMenu] = useState(false)
   const scannerRef = useRef(null)
   const html5QrCodeRef = useRef(null)
+  const menuRef = useRef(null)
+
+  // Function to get available cameras with proper labels
+  const getCameras = async (requestPermission = false) => {
+    try {
+      // Request permission first to get proper camera labels
+      if (requestPermission) {
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true })
+        } catch (permErr) {
+          console.error('Permission denied:', permErr)
+          return
+        }
+      }
+      
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = devices.filter(device => device.kind === 'videoinput')
+      
+      // Map devices with better labels
+      const cameraList = videoDevices.map((device, index) => ({
+        id: device.deviceId,
+        label: device.label || `Camera ${index + 1}`,
+        index: index
+      }))
+      
+      setCameras(cameraList)
+      
+      // Set default camera (first one or previously selected)
+      if (cameraList.length > 0 && !selectedCameraId) {
+        const savedCameraId = localStorage.getItem('selectedCameraId')
+        if (savedCameraId && cameraList.find(cam => cam.id === savedCameraId)) {
+          setSelectedCameraId(savedCameraId)
+        } else {
+          setSelectedCameraId(cameraList[0].id)
+        }
+      }
+    } catch (err) {
+      console.error('Error enumerating cameras:', err)
+    }
+  }
+
+  // Get available cameras on component mount (without permission request)
+  useEffect(() => {
+    getCameras(false)
+  }, [])
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowCameraMenu(false)
+      }
+    }
+
+    if (showCameraMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showCameraMenu])
 
   useEffect(() => {
     return () => {
@@ -29,8 +94,16 @@ const QRScanner = () => {
       const html5QrCode = new Html5Qrcode("reader")
       html5QrCodeRef.current = html5QrCode
 
+      // Use selected camera or fallback to facingMode
+      let cameraConfig
+      if (selectedCameraId) {
+        cameraConfig = { deviceId: { exact: selectedCameraId } }
+      } else {
+        cameraConfig = { facingMode: "environment" }
+      }
+
       await html5QrCode.start(
-        { facingMode: "environment" },
+        cameraConfig,
         {
           fps: 10,
           // Remove qrbox to scan entire camera view
@@ -48,6 +121,25 @@ const QRScanner = () => {
     } catch (err) {
       setError('Failed to start camera. Please ensure camera permissions are granted.')
       console.error('Error starting scanner:', err)
+    }
+  }
+
+  const handleCameraChange = async (cameraId) => {
+    setSelectedCameraId(cameraId)
+    localStorage.setItem('selectedCameraId', cameraId)
+    setShowCameraMenu(false)
+    
+    // If currently scanning, restart with new camera
+    if (scanning && html5QrCodeRef.current) {
+      try {
+        await stopScanning()
+        // Small delay to ensure camera is released
+        setTimeout(() => {
+          startScanning()
+        }, 300)
+      } catch (err) {
+        console.error('Error switching camera:', err)
+      }
     }
   }
 
@@ -153,8 +245,54 @@ const QRScanner = () => {
                 </>
               )}
             </div>
-            <div className="scan-count">
-              <span>Scans Today: {scanCount}</span>
+            <div className="scanner-status-right">
+              <div className="scan-count">
+                <span>Scans Today: {scanCount}</span>
+              </div>
+              <div className="camera-menu-wrapper" ref={menuRef}>
+                <button 
+                  className="camera-settings-btn"
+                  onClick={async () => {
+                    // Request permission and refresh camera list when opening menu
+                    if (!showCameraMenu) {
+                      await getCameras(true)
+                    }
+                    setShowCameraMenu(!showCameraMenu)
+                  }}
+                  title="Camera Settings"
+                >
+                  <FiMoreVertical className="settings-icon" />
+                </button>
+                {showCameraMenu && (
+                  <div className="camera-menu">
+                    <div className="camera-menu-header">
+                      <FiSettings className="menu-icon" />
+                      <span>Select Camera</span>
+                    </div>
+                    <div className="camera-menu-list">
+                      {cameras.length === 0 ? (
+                        <div className="camera-menu-item disabled">
+                          <span>No cameras available</span>
+                        </div>
+                      ) : (
+                        cameras.map((camera) => (
+                          <button
+                            key={camera.id}
+                            className={`camera-menu-item ${selectedCameraId === camera.id ? 'active' : ''}`}
+                            onClick={() => handleCameraChange(camera.id)}
+                          >
+                            <FiCamera className="camera-icon" />
+                            <span className="camera-label">{camera.label}</span>
+                            {selectedCameraId === camera.id && (
+                              <div className="camera-check">✓</div>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
