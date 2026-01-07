@@ -9,6 +9,7 @@ import io
 import base64
 import os
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -66,6 +67,13 @@ class Vehicle(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     entries = db.relationship('EntryLog', backref='vehicle', lazy=True, order_by='EntryLog.timestamp.desc()')
+    images = db.relationship('VehicleImage', backref='vehicle', lazy=True, cascade='all, delete-orphan')
+
+class VehicleImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicle.id'), nullable=False)
+    image_data = db.Column(db.Text, nullable=False)  # Base64 encoded image
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class EntryLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -318,7 +326,11 @@ def get_vehicles():
             'qr_code': v.qr_code,
             'user_id': v.user_id,
             'owner_name': v.owner.full_name,
-            'created_at': v.created_at.isoformat()
+            'created_at': v.created_at.isoformat(),
+            'images': [{
+                'id': img.id,
+                'image_data': img.image_data
+            } for img in v.images]
         } for v in vehicles]), 200
     except Exception as e:
         print(f"Error in get_vehicles: {str(e)}")
@@ -332,27 +344,45 @@ def create_vehicle():
     # JWT identity is a string, convert to int for database lookup
     current_user_id = int(get_jwt_identity())
     current_user = db.session.get(User, current_user_id)
-    data = request.get_json()
     
-    user_id = data.get('user_id', current_user_id)
+    # Check if it's multipart/form-data (with images) or JSON
+    if 'images' in request.files or request.content_type.startswith('multipart/form-data'):
+        # Handle form data with images
+        plate_number = request.form.get('plate_number')
+        vehicle_type = request.form.get('vehicle_type')
+        make = request.form.get('make', '')
+        model = request.form.get('model', '')
+        color = request.form.get('color', '')
+        user_id = int(request.form.get('user_id', current_user_id))
+        images = request.files.getlist('images')
+    else:
+        # Handle JSON data
+        data = request.get_json()
+        plate_number = data.get('plate_number')
+        vehicle_type = data.get('vehicle_type')
+        make = data.get('make', '')
+        model = data.get('model', '')
+        color = data.get('color', '')
+        user_id = data.get('user_id', current_user_id)
+        images = []
     
     # Only admin can assign vehicles to other users
     if user_id != current_user_id and current_user.role != 'admin':
         return jsonify({'message': 'Unauthorized'}), 403
     
-    if Vehicle.query.filter_by(plate_number=data.get('plate_number')).first():
+    if Vehicle.query.filter_by(plate_number=plate_number).first():
         return jsonify({'message': 'Plate number already exists'}), 400
     
     # Generate QR code data (using vehicle ID will be set after creation)
-    qr_data = f"VEHICLE:{data.get('plate_number')}"
+    qr_data = f"VEHICLE:{plate_number}"
     qr_code_image = generate_qr_code(qr_data)
     
     vehicle = Vehicle(
-        plate_number=data.get('plate_number'),
-        vehicle_type=data.get('vehicle_type'),
-        make=data.get('make'),
-        model=data.get('model'),
-        color=data.get('color'),
+        plate_number=plate_number,
+        vehicle_type=vehicle_type,
+        make=make,
+        model=model,
+        color=color,
         qr_code=qr_code_image,
         user_id=user_id
     )
@@ -363,6 +393,26 @@ def create_vehicle():
     # Update QR code with actual vehicle ID
     qr_data = f"VEHICLE:{vehicle.id}:{vehicle.plate_number}"
     vehicle.qr_code = generate_qr_code(qr_data)
+    
+    # Process images if any
+    vehicle_images = []
+    for image in images:
+        if image and image.filename:
+            # Read and convert image to base64
+            image_data = image.read()
+            image_base64 = base64.b64encode(image_data).decode()
+            
+            # Create image record
+            vehicle_image = VehicleImage(
+                vehicle_id=vehicle.id,
+                image_data=f"data:{image.mimetype};base64,{image_base64}"
+            )
+            db.session.add(vehicle_image)
+            vehicle_images.append({
+                'id': vehicle_image.id,
+                'image_data': vehicle_image.image_data
+            })
+    
     db.session.commit()
     
     return jsonify({
@@ -375,7 +425,8 @@ def create_vehicle():
             'model': vehicle.model,
             'color': vehicle.color,
             'qr_code': vehicle.qr_code,
-            'user_id': vehicle.user_id
+            'user_id': vehicle.user_id,
+            'images': vehicle_images
         }
     }), 201
 
@@ -391,24 +442,65 @@ def update_vehicle(vehicle_id):
     if current_user.role != 'admin' and vehicle.user_id != current_user_id:
         return jsonify({'message': 'Unauthorized'}), 403
     
-    data = request.get_json()
-    
-    if 'plate_number' in data and data['plate_number'] != vehicle.plate_number:
-        if Vehicle.query.filter_by(plate_number=data['plate_number']).first():
-            return jsonify({'message': 'Plate number already exists'}), 400
-        vehicle.plate_number = data['plate_number']
-        # Regenerate QR code
-        qr_data = f"VEHICLE:{vehicle.id}:{vehicle.plate_number}"
-        vehicle.qr_code = generate_qr_code(qr_data)
-    
-    if 'vehicle_type' in data:
-        vehicle.vehicle_type = data['vehicle_type']
-    if 'make' in data:
-        vehicle.make = data['make']
-    if 'model' in data:
-        vehicle.model = data['model']
-    if 'color' in data:
-        vehicle.color = data['color']
+    # Check if it's multipart/form-data (with images) or JSON
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        # Handle form data with optional images
+        if 'plate_number' in request.form:
+            new_plate = request.form.get('plate_number')
+            if new_plate != vehicle.plate_number:
+                if Vehicle.query.filter_by(plate_number=new_plate).first():
+                    return jsonify({'message': 'Plate number already exists'}), 400
+                vehicle.plate_number = new_plate
+                qr_data = f"VEHICLE:{vehicle.id}:{vehicle.plate_number}"
+                vehicle.qr_code = generate_qr_code(qr_data)
+        
+        if 'vehicle_type' in request.form:
+            vehicle.vehicle_type = request.form.get('vehicle_type')
+        if 'make' in request.form:
+            vehicle.make = request.form.get('make')
+        if 'model' in request.form:
+            vehicle.model = request.form.get('model')
+        if 'color' in request.form:
+            vehicle.color = request.form.get('color')
+        
+        # Handle new images
+        images = request.files.getlist('images')
+        for image in images:
+            if image and image.filename:
+                image_data = image.read()
+                image_base64 = base64.b64encode(image_data).decode()
+                vehicle_image = VehicleImage(
+                    vehicle_id=vehicle.id,
+                    image_data=f"data:{image.mimetype};base64,{image_base64}"
+                )
+                db.session.add(vehicle_image)
+        
+        # Handle image deletions if provided
+        if 'delete_images' in request.form:
+            delete_image_ids = json.loads(request.form.get('delete_images', '[]'))
+            for img_id in delete_image_ids:
+                img = VehicleImage.query.get(img_id)
+                if img and img.vehicle_id == vehicle.id:
+                    db.session.delete(img)
+    else:
+        # Handle JSON data
+        data = request.get_json()
+        
+        if 'plate_number' in data and data['plate_number'] != vehicle.plate_number:
+            if Vehicle.query.filter_by(plate_number=data['plate_number']).first():
+                return jsonify({'message': 'Plate number already exists'}), 400
+            vehicle.plate_number = data['plate_number']
+            qr_data = f"VEHICLE:{vehicle.id}:{vehicle.plate_number}"
+            vehicle.qr_code = generate_qr_code(qr_data)
+        
+        if 'vehicle_type' in data:
+            vehicle.vehicle_type = data['vehicle_type']
+        if 'make' in data:
+            vehicle.make = data['make']
+        if 'model' in data:
+            vehicle.model = data['model']
+        if 'color' in data:
+            vehicle.color = data['color']
     
     db.session.commit()
     return jsonify({'message': 'Vehicle updated successfully'}), 200
