@@ -49,9 +49,10 @@ const Users = () => {
 
   const handleEdit = (user) => {
     setEditingUser(user)
+    // Only include email if user is admin (regular users have placeholder emails)
     setFormData({
       username: user.username,
-      email: user.email,
+      email: user.role === 'admin' ? (user.email || '') : '',
       full_name: user.full_name,
       password: '',
       role: user.role
@@ -62,10 +63,24 @@ const Users = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      // Prepare data based on role
+      const submitData = { ...formData }
+      
+      // If role is 'user', don't send email and password
+      if (submitData.role === 'user') {
+        delete submitData.email
+        delete submitData.password
+      }
+      
+      // If editing and password is empty, don't send it
+      if (editingUser && !submitData.password) {
+        delete submitData.password
+      }
+      
       if (editingUser) {
-        await axios.put(`/api/users/${editingUser.id}`, formData)
+        await axios.put(`/api/users/${editingUser.id}`, submitData)
       } else {
-        await axios.post('/api/auth/register', formData)
+        await axios.post('/api/auth/register', submitData)
       }
       setShowModal(false)
       fetchUsers()
@@ -124,7 +139,7 @@ const Users = () => {
               <tr key={user.id}>
                 <td>{user.username}</td>
                 <td>{user.full_name}</td>
-                <td>{user.email}</td>
+                <td>{user.email || (user.role === 'admin' ? '-' : 'N/A')}</td>
                 <td>
                   <span className={`role-badge role-${user.role}`}>
                     {user.role}
@@ -164,6 +179,24 @@ const Users = () => {
             <h2>{editingUser ? 'Edit User' : 'Create User'}</h2>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
+                <label>Role</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => {
+                    const newRole = e.target.value
+                    // Clear email and password when switching to user role
+                    if (newRole === 'user') {
+                      setFormData({ ...formData, role: newRole, email: '', password: '' })
+                    } else {
+                      setFormData({ ...formData, role: newRole })
+                    }
+                  }}
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="form-group">
                 <label>Username</label>
                 <input
                   type="text"
@@ -182,34 +215,28 @@ const Users = () => {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Password {editingUser && '(leave blank to keep current)'}</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required={!editingUser}
-                />
-              </div>
-              <div className="form-group">
-                <label>Role</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+              {formData.role === 'admin' && (
+                <>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Password {editingUser && '(leave blank to keep current)'}</label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required={!editingUser}
+                    />
+                  </div>
+                </>
+              )}
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>
                   Cancel

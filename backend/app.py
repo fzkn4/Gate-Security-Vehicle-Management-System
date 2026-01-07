@@ -173,19 +173,42 @@ def register():
         return jsonify({'message': 'Admin access required'}), 403
     
     data = request.get_json()
+    role = data.get('role', 'user')
     
     if User.query.filter_by(username=data.get('username')).first():
         return jsonify({'message': 'Username already exists'}), 400
     
-    if User.query.filter_by(email=data.get('email')).first():
-        return jsonify({'message': 'Email already exists'}), 400
+    # Handle email and password based on role
+    if role == 'admin':
+        # Admin users require email and password
+        email = data.get('email')
+        password = data.get('password')
+        
+        if not email:
+            return jsonify({'message': 'Email is required for admin users'}), 400
+        if not password:
+            return jsonify({'message': 'Password is required for admin users'}), 400
+            
+        if User.query.filter_by(email=email).first():
+            return jsonify({'message': 'Email already exists'}), 400
+        
+        user_email = email
+        user_password_hash = generate_password_hash(password)
+    else:
+        # Regular users don't need email/password - use placeholder values
+        username = data.get('username')
+        user_email = f"{username}@nologin.local"
+        # Generate a random password hash (user won't use it)
+        import secrets
+        random_password = secrets.token_urlsafe(32)
+        user_password_hash = generate_password_hash(random_password)
     
     user = User(
         username=data.get('username'),
-        email=data.get('email'),
-        password_hash=generate_password_hash(data.get('password')),
+        email=user_email,
+        password_hash=user_password_hash,
         full_name=data.get('full_name'),
-        role=data.get('role', 'user')
+        role=role
     )
     
     db.session.add(user)
@@ -196,7 +219,7 @@ def register():
         'user': {
             'id': user.id,
             'username': user.username,
-            'email': user.email,
+            'email': user.email if role == 'admin' else None,  # Don't show placeholder email
             'full_name': user.full_name,
             'role': user.role
         }
@@ -218,7 +241,7 @@ def get_users():
         return jsonify([{
             'id': u.id,
             'username': u.username,
-            'email': u.email,
+            'email': u.email if u.role == 'admin' and not u.email.endswith('@nologin.local') else None,
             'full_name': u.full_name,
             'role': u.role,
             'created_at': u.created_at.isoformat(),
@@ -242,7 +265,7 @@ def get_user(user_id):
     return jsonify({
         'id': user.id,
         'username': user.username,
-        'email': user.email,
+        'email': user.email if user.role == 'admin' and not user.email.endswith('@nologin.local') else None,
         'full_name': user.full_name,
         'role': user.role,
         'created_at': user.created_at.isoformat(),
@@ -266,7 +289,35 @@ def update_user(user_id):
     if current_user.role != 'admin' and current_user.id != user_id:
         return jsonify({'message': 'Unauthorized'}), 403
     
-    if 'email' in data:
+    # Handle role changes
+    if 'role' in data and current_user.role == 'admin':
+        new_role = data['role']
+        old_role = user.role
+        
+        # If changing from admin to user, set placeholder email
+        if old_role == 'admin' and new_role == 'user':
+            user.email = f"{user.username}@nologin.local"
+            # Generate random password (user won't use it)
+            import secrets
+            random_password = secrets.token_urlsafe(32)
+            user.password_hash = generate_password_hash(random_password)
+        # If changing from user to admin, require email and password
+        elif old_role == 'user' and new_role == 'admin':
+            if 'email' not in data or not data['email']:
+                return jsonify({'message': 'Email is required when changing role to admin'}), 400
+            if 'password' not in data or not data['password']:
+                return jsonify({'message': 'Password is required when changing role to admin'}), 400
+            # Check if email already exists
+            existing = User.query.filter_by(email=data['email']).first()
+            if existing and existing.id != user_id:
+                return jsonify({'message': 'Email already exists'}), 400
+            user.email = data['email']
+            user.password_hash = generate_password_hash(data['password'])
+        
+        user.role = new_role
+    
+    # Handle email updates (only for admin users)
+    if 'email' in data and user.role == 'admin':
         existing = User.query.filter_by(email=data['email']).first()
         if existing and existing.id != user_id:
             return jsonify({'message': 'Email already exists'}), 400
@@ -275,11 +326,11 @@ def update_user(user_id):
     if 'full_name' in data:
         user.full_name = data['full_name']
     
-    if 'role' in data and current_user.role == 'admin':
-        user.role = data['role']
-    
-    if 'password' in data:
-        user.password_hash = generate_password_hash(data['password'])
+    # Handle password updates (only for admin users or if explicitly provided)
+    if 'password' in data and data['password']:
+        if user.role == 'admin':
+            user.password_hash = generate_password_hash(data['password'])
+        # For regular users, we don't update password (they don't use it)
     
     db.session.commit()
     return jsonify({'message': 'User updated successfully'}), 200
