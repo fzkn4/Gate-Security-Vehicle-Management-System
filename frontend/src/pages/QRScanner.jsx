@@ -19,7 +19,7 @@ const QRScanner = () => {
   const [errorLog, setErrorLog] = useState([])
   const [showErrorLog, setShowErrorLog] = useState(false)
   const [modalTimer, setModalTimer] = useState(null)
-  const [countdown, setCountdown] = useState(10)
+  const [countdown, setCountdown] = useState(30)
   const scannerRef = useRef(null)
   const html5QrCodeRef = useRef(null)
   const menuRef = useRef(null)
@@ -234,7 +234,7 @@ const QRScanner = () => {
       
       // Show modal
       setShowResultModal(true)
-      setCountdown(10)
+      setCountdown(30)
       
       // Start countdown
       countdownRef.current = setInterval(() => {
@@ -247,13 +247,13 @@ const QRScanner = () => {
         })
       }, 1000)
       
-      // Set auto-close timer (10 seconds)
+      // Set auto-close timer (30 seconds)
       if (modalTimer) {
         clearTimeout(modalTimer)
       }
       const timer = setTimeout(() => {
         setShowResultModal(false)
-      }, 10000)
+      }, 30000)
       setModalTimer(timer)
       
       // Resume scanning after successful scan
@@ -482,99 +482,71 @@ const QRScanner = () => {
 
       {showResultModal && lastScan && (
         <div className="result-modal-overlay" onClick={closeResultModal}>
-          <div className="result-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-group">
-                <div className="modal-icon-wrapper">
-                  <FiCheck className="modal-icon" />
-                </div>
-                <div>
-                  <h2>Scan Successful</h2>
-                  <p className="modal-subtitle">{success}</p>
+          <div className="result-modal result-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="result-modal-header">
+              <div className="result-plate-header">
+                <div className="result-plate-number">{lastScan.plate_number}</div>
+                <div className={`result-entry-badge entry-${lastScan.entry_type}`}>
+                  {lastScan.entry_type === 'in' ? 'ENTRY' : 'EXIT'}
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={closeResultModal}>
+              <button className="result-modal-close-btn" onClick={closeResultModal}>
                 <FiX />
               </button>
             </div>
 
-            <div className="scan-details">
-              <div className="vehicle-image-container">
-                {lastScan.vehicle_image && lastScan.vehicle_image.length > 0 ? (
-                  <img 
-                    src={lastScan.vehicle_image} 
-                    alt={`${lastScan.plate_number} - Vehicle`}
-                    className="vehicle-image"
-                    loading="eager"
-                  />
-                ) : (
-                  <div className="no-image-placeholder">
-                    <FiImage className="no-image-icon" />
-                    <span className="no-image-text">No Vehicle Image</span>
-                  </div>
-                )}
+            <div className="result-image-container">
+              {lastScan.vehicle_image && lastScan.vehicle_image.length > 0 ? (
+                <img 
+                  src={lastScan.vehicle_image} 
+                  alt={`${lastScan.plate_number} - Vehicle`}
+                  className="result-vehicle-image"
+                  loading="eager"
+                />
+              ) : (
+                <div className="result-no-image">
+                  <FiImage className="result-no-image-icon" />
+                  <span>No Vehicle Image</span>
+                </div>
+              )}
+            </div>
+
+            <div className="result-details">
+              <div className="result-detail-item">
+                <span className="result-detail-label">Vehicle Type:</span>
+                <span className="result-detail-value">{lastScan.vehicle_type}</span>
               </div>
-
-              <div className="main-info-card">
-                <div className={`entry-type-badge entry-type-${lastScan.entry_type}`}>
-                  <div className="entry-type-icon">
-                    {lastScan.entry_type === 'in' ? <FiCheckCircle /> : <FiXCircle />}
-                  </div>
-                  <div className="entry-type-text">
-                    <span className="entry-type-label">
-                      {lastScan.entry_type === 'in' ? 'ENTRY' : 'EXIT'}
-                    </span>
-                    <span className="entry-type-time">
-                      {new Date(lastScan.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
+              {lastScan.make && lastScan.model && (
+                <div className="result-detail-item">
+                  <span className="result-detail-label">Make/Model:</span>
+                  <span className="result-detail-value">{lastScan.make} {lastScan.model}</span>
                 </div>
-                <div className="plate-number-display">
-                  <FiShield className="plate-icon" />
-                  <span className="plate-number">{lastScan.plate_number}</span>
+              )}
+              {lastScan.color && (
+                <div className="result-detail-item">
+                  <span className="result-detail-label">Color:</span>
+                  <span className="result-detail-value">{lastScan.color}</span>
                 </div>
+              )}
+              <div className="result-detail-item">
+                <span className="result-detail-label">Owner:</span>
+                <span className="result-detail-value">{lastScan.owner_name}</span>
               </div>
-
-              <div className="info-grid">
-                <div className="info-card">
-                  <FiTruck className="info-icon" />
-                  <div className="info-content">
-                    <span className="info-label">Vehicle Type</span>
-                    <span className="info-value">{lastScan.vehicle_type}</span>
-                  </div>
-                </div>
-
-                <div className="info-card">
-                  <FiShield className="info-icon" />
-                  <div className="info-content">
-                    <span className="info-label">Owner</span>
-                    <span className="info-value">{lastScan.owner_name}</span>
-                  </div>
-                </div>
-
-                <div className="info-card">
-                  <FiClock className="info-icon" />
-                  <div className="info-content">
-                    <span className="info-label">Date & Time</span>
-                    <span className="info-value">{new Date(lastScan.timestamp).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="info-card">
-                  <FiMapPin className="info-icon" />
-                  <div className="info-content">
-                    <span className="info-label">Location</span>
-                    <span className="info-value">{lastScan.location}</span>
-                  </div>
-                </div>
+              <div className="result-detail-item">
+                <span className="result-detail-label">Date & Time:</span>
+                <span className="result-detail-value">{new Date(lastScan.timestamp).toLocaleString()}</span>
+              </div>
+              <div className="result-detail-item">
+                <span className="result-detail-label">Location:</span>
+                <span className="result-detail-value">{lastScan.location}</span>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <div className="countdown-indicator">
-                <div className="countdown-bar" style={{ width: `${(countdown / 10) * 100}%` }}></div>
+            <div className="result-modal-footer">
+              <div className="result-countdown-indicator">
+                <div className="result-countdown-bar" style={{ width: `${(countdown / 30) * 100}%` }}></div>
               </div>
-              <button className="btn-primary" onClick={closeResultModal}>
+              <button className="result-close-btn" onClick={closeResultModal}>
                 Close
               </button>
             </div>
