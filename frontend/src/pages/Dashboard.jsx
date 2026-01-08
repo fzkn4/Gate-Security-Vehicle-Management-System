@@ -15,7 +15,7 @@ import {
   Legend, 
   ResponsiveContainer 
 } from 'recharts'
-import { FiTruck, FiMapPin, FiLogIn, FiLogOut, FiActivity, FiFileText, FiMapPin as FiLocation, FiChevronDown } from 'react-icons/fi'
+import { FiTruck, FiMapPin, FiLogIn, FiLogOut, FiActivity, FiFileText, FiMapPin as FiLocation, FiChevronDown, FiFilter, FiCalendar, FiX } from 'react-icons/fi'
 import './Dashboard.css'
 
 const Dashboard = () => {
@@ -25,6 +25,8 @@ const Dashboard = () => {
   const [chartData, setChartData] = useState([])
   const [filterPeriod, setFilterPeriod] = useState('today')
   const [allEntries, setAllEntries] = useState([])
+  const [entriesFilter, setEntriesFilter] = useState({ type: 'all', fromDate: null, toDate: null })
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -188,6 +190,71 @@ const Dashboard = () => {
 
   const pieData = allEntries.length > 0 ? getFilteredPieData() : []
 
+  const getFilteredRecentEntries = () => {
+    if (entriesFilter.type === 'all') {
+      return recentEntries
+    }
+
+    const now = new Date()
+    let startDate = new Date()
+    let endDate = new Date()
+
+    switch (entriesFilter.type) {
+      case 'daily':
+        startDate = new Date()
+        startDate.setDate(now.getDate() - 1)
+        startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
+        break
+      case 'weekly':
+        startDate = new Date()
+        startDate.setDate(now.getDate() - 7)
+        startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
+        break
+      case 'monthly':
+        startDate = new Date()
+        startDate.setMonth(now.getMonth() - 1)
+        startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
+        break
+      case 'yearly':
+        startDate = new Date()
+        startDate.setFullYear(now.getFullYear() - 1)
+        startDate.setHours(0, 0, 0, 0)
+        endDate.setHours(23, 59, 59, 999)
+        break
+      case 'range':
+        startDate = new Date(entriesFilter.fromDate)
+        startDate.setHours(0, 0, 0, 0)
+        endDate = new Date(entriesFilter.toDate)
+        endDate.setHours(23, 59, 59, 999)
+        break
+      default:
+        return recentEntries
+    }
+
+    return recentEntries.filter(entry => {
+      const entryDate = new Date(entry.timestamp)
+      return entryDate >= startDate && entryDate <= endDate
+    })
+  }
+
+  const filteredRecentEntries = getFilteredRecentEntries()
+
+  const handleFilterChange = (type) => {
+    if (type === 'range') {
+      setEntriesFilter({ ...entriesFilter, type })
+    } else {
+      setEntriesFilter({ type: type, fromDate: null, toDate: null })
+    }
+  }
+
+  const handleDateRangeChange = (fromDate, toDate) => {
+    setEntriesFilter({ ...entriesFilter, fromDate, toDate })
+    setShowFilterDropdown(false)
+  }
+
   const getTimeAgo = (date) => {
     const now = new Date()
     const diffInSeconds = Math.floor((now - date) / 1000)
@@ -349,17 +416,90 @@ const Dashboard = () => {
       <div className="recent-entries-section">
         <div className="section-header">
           <h2>Recent Entries</h2>
-          <span className="entries-count">{recentEntries.length} entries</span>
+          <div className="section-header-actions">
+            <span className="entries-count">{filteredRecentEntries.length} entries</span>
+            <div className="filter-dropdown-container">
+              <button 
+                className="filter-button"
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+              >
+                <FiFilter className="filter-icon" />
+              </button>
+              {showFilterDropdown && (
+                <div className="filter-dropdown">
+                  <div className="filter-option" onClick={() => { handleFilterChange('all'); setShowFilterDropdown(false) }}>
+                    <FiCalendar className="filter-option-icon" />
+                    <span>All Time</span>
+                  </div>
+                  <div className="filter-option" onClick={() => { handleFilterChange('daily'); setShowFilterDropdown(false) }}>
+                    <FiCalendar className="filter-option-icon" />
+                    <span>Daily</span>
+                  </div>
+                  <div className="filter-option" onClick={() => { handleFilterChange('weekly'); setShowFilterDropdown(false) }}>
+                    <FiCalendar className="filter-option-icon" />
+                    <span>Weekly</span>
+                  </div>
+                  <div className="filter-option" onClick={() => { handleFilterChange('monthly'); setShowFilterDropdown(false) }}>
+                    <FiCalendar className="filter-option-icon" />
+                    <span>Monthly</span>
+                  </div>
+                  <div className="filter-option" onClick={() => { handleFilterChange('yearly'); setShowFilterDropdown(false) }}>
+                    <FiCalendar className="filter-option-icon" />
+                    <span>Yearly</span>
+                  </div>
+                  <div className="filter-divider"></div>
+                  <div 
+                    className="filter-option filter-range-option"
+                    onClick={() => handleFilterChange('range')}
+                  >
+                    <FiCalendar className="filter-option-icon" />
+                    <span>Custom Range</span>
+                  </div>
+                  {entriesFilter.type === 'range' && (
+                    <div className="filter-range-inputs" onClick={(e) => e.stopPropagation()}>
+                      <div className="range-input-group">
+                        <label>From</label>
+                        <input
+                          type="date"
+                          value={entriesFilter.fromDate || ''}
+                          onChange={(e) => setEntriesFilter({ ...entriesFilter, fromDate: e.target.value })}
+                        />
+                      </div>
+                      <div className="range-input-group">
+                        <label>To</label>
+                        <input
+                          type="date"
+                          value={entriesFilter.toDate || ''}
+                          onChange={(e) => setEntriesFilter({ ...entriesFilter, toDate: e.target.value })}
+                        />
+                      </div>
+                      <button 
+                        className="apply-range-button"
+                        onClick={() => {
+                          if (entriesFilter.fromDate && entriesFilter.toDate) {
+                            handleDateRangeChange(entriesFilter.fromDate, entriesFilter.toDate)
+                          }
+                        }}
+                        disabled={!entriesFilter.fromDate || !entriesFilter.toDate}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="entries-list">
-          {recentEntries.length === 0 ? (
+          {filteredRecentEntries.length === 0 ? (
             <div className="empty-state">
               <FiFileText className="empty-icon" />
-              <p>No entries yet</p>
-              <p className="empty-hint">Vehicle entries will appear here</p>
+              <p>No entries found</p>
+              <p className="empty-hint">Try adjusting your filter settings</p>
             </div>
           ) : (
-            recentEntries.map((entry) => {
+            filteredRecentEntries.map((entry) => {
               const entryDate = new Date(entry.timestamp)
               const timeAgo = getTimeAgo(entryDate)
               
