@@ -1,6 +1,6 @@
 # Gate Security - Vehicle Management System
 
-A modern QR code-based vehicle entry/exit management system with a beautiful UI inspired by VitaGlyph design.
+A modern QR code-based vehicle entry/exit management system with a beautiful UI.
 
 ## Features
 
