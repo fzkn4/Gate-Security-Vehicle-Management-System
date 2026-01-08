@@ -24,6 +24,8 @@ const QRScanner = () => {
   const html5QrCodeRef = useRef(null)
   const menuRef = useRef(null)
   const countdownRef = useRef(null)
+  const lastScannedQrRef = useRef(null)
+  const isProcessingScanRef = useRef(false)
 
   // Function to get available cameras with proper labels
   const getCameras = async (requestPermission = false) => {
@@ -166,16 +168,24 @@ const QRScanner = () => {
   }
 
   const handleScan = async (qrData) => {
+    // Prevent duplicate scans of the same QR code
+    if (isProcessingScanRef.current) {
+      return
+    }
+
+    // Prevent scanning the same QR code multiple times in quick succession
+    const now = Date.now()
+    if (lastScannedQrRef.current && 
+        lastScannedQrRef.current.qrData === qrData && 
+        now - lastScannedQrRef.current.timestamp < 3000) {
+      return // Ignore if same QR code scanned within 3 seconds
+    }
+
+    // Mark as processing to prevent concurrent scans
+    isProcessingScanRef.current = true
+    lastScannedQrRef.current = { qrData, timestamp: now }
+    
     try {
-      // Pause scanning to prevent multiple simultaneous scans
-      if (html5QrCodeRef.current) {
-        try {
-          await html5QrCodeRef.current.pause()
-        } catch (pauseErr) {
-          // Ignore pause errors
-        }
-      }
-      
       setError('')
       setSuccess('')
       
@@ -256,14 +266,11 @@ const QRScanner = () => {
       }, 30000)
       setModalTimer(timer)
       
-      // Resume scanning after successful scan
-      if (html5QrCodeRef.current && scanning) {
-        try {
-          await html5QrCodeRef.current.resume()
-        } catch (resumeErr) {
-          // Ignore resume errors
-        }
-      }
+      // Scanner continues running - no need to restart
+      // Reset processing flag after a short delay to allow next scan
+      setTimeout(() => {
+        isProcessingScanRef.current = false
+      }, 2000)
       
     } catch (err) {
       const errorMessage = err.response?.data?.message || err.message || 'Failed to process QR code'
@@ -303,14 +310,16 @@ const QRScanner = () => {
       }, 8000)
       setModalTimer(timer)
       
-      // Resume scanning on error
-      if (html5QrCodeRef.current && scanning) {
-        try {
-          await html5QrCodeRef.current.resume()
-        } catch (resumeErr) {
-          // Ignore resume errors
-        }
-      }
+      // Scanner continues running - no need to restart
+      // Reset processing flag after a short delay to allow next scan
+      setTimeout(() => {
+        isProcessingScanRef.current = false
+      }, 2000)
+    } finally {
+      // Ensure processing flag is reset even if there's an unexpected error
+      setTimeout(() => {
+        isProcessingScanRef.current = false
+      }, 2000)
     }
   }
 

@@ -271,6 +271,17 @@
   display: none !important;
 }
 
+#reader > div {
+  display: none !important;
+}
+
+#reader video {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
 .scanner-placeholder {
   position: absolute;
   top: 0;
