@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import axios from 'axios'
-import { FiCamera, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiSettings, FiMoreVertical } from 'react-icons/fi'
+import { FiCamera, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiSettings, FiMoreVertical, FiX, FiClock, FiMapPin, FiTruck, FiShield, FiCheck, FiImage } from 'react-icons/fi'
 import './QRScanner.css'
 
 const QRScanner = () => {
@@ -13,9 +13,17 @@ const QRScanner = () => {
   const [cameras, setCameras] = useState([])
   const [selectedCameraId, setSelectedCameraId] = useState(null)
   const [showCameraMenu, setShowCameraMenu] = useState(false)
+  const [showResultModal, setShowResultModal] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [errorDetails, setErrorDetails] = useState('')
+  const [errorLog, setErrorLog] = useState([])
+  const [showErrorLog, setShowErrorLog] = useState(false)
+  const [modalTimer, setModalTimer] = useState(null)
+  const [countdown, setCountdown] = useState(10)
   const scannerRef = useRef(null)
   const html5QrCodeRef = useRef(null)
   const menuRef = useRef(null)
+  const countdownRef = useRef(null)
 
   // Function to get available cameras with proper labels
   const getCameras = async (requestPermission = false) => {
@@ -110,6 +118,7 @@ const QRScanner = () => {
           // aspectRatio: 1.0 // Optional: maintain aspect ratio
         },
         (decodedText) => {
+          console.log('QR Code decoded:', decodedText)
           handleScan(decodedText)
         },
         (errorMessage) => {
@@ -170,7 +179,7 @@ const QRScanner = () => {
       setError('')
       setSuccess('')
       
-      // Get the current date/time from the device (local time)
+      // Get current date/time from device (local time)
       // Create a date object and format it as ISO string with timezone offset
       const now = new Date()
       const timezoneOffset = -now.getTimezoneOffset() // Get offset in minutes
@@ -190,6 +199,25 @@ const QRScanner = () => {
       
       const deviceTimestamp = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${milliseconds}${offsetString}`
       
+      console.log('Scanning QR code:', qrData)
+      console.log('QR data length:', qrData.length)
+      console.log('QR data starts with VEHICLE:', qrData.startsWith('VEHICLE:'))
+      
+      // Validate QR format before sending to backend
+      if (!qrData || typeof qrData !== 'string') {
+        throw new Error('Invalid QR code data')
+      }
+      
+      if (!qrData.startsWith('VEHICLE:')) {
+        throw new Error(`Invalid QR code format. Expected VEHICLE:... but got: ${qrData.substring(0, 30)}`)
+      }
+      
+      // Check if QR data has enough content
+      const parts = qrData.split(':')
+      if (parts.length < 2) {
+        throw new Error(`Invalid QR code format. Expected VEHICLE:ID:PLATE or VEHICLE:PLATE. Got: ${qrData.substring(0, 30)}`)
+      }
+      
       const response = await axios.post('/api/scan', {
         qr_data: qrData,
         location: 'Main Gate',
@@ -200,17 +228,81 @@ const QRScanner = () => {
       setLastScan(response.data.entry)
       setScanCount(prev => prev + 1)
       
-      // Stop scanning after successful scan
-      await stopScanning()
+      // Clear any previous error
+      setErrorDetails('')
+      setShowErrorModal(false)
       
-      // Auto-restart after 2 seconds
-      setTimeout(() => {
-        startScanning()
-      }, 2000)
+      // Show modal
+      setShowResultModal(true)
+      setCountdown(10)
+      
+      // Start countdown
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      
+      // Set auto-close timer (10 seconds)
+      if (modalTimer) {
+        clearTimeout(modalTimer)
+      }
+      const timer = setTimeout(() => {
+        setShowResultModal(false)
+      }, 10000)
+      setModalTimer(timer)
+      
+      // Resume scanning after successful scan
+      if (html5QrCodeRef.current && scanning) {
+        try {
+          await html5QrCodeRef.current.resume()
+        } catch (resumeErr) {
+          // Ignore resume errors
+        }
+      }
       
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to process QR code')
-      console.error('Error scanning:', err)
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to process QR code'
+      const errorTime = new Date()
+      
+      // Add to error log
+      const newErrorLog = {
+        id: Date.now(),
+        message: errorMessage,
+        qrData: qrData ? qrData.substring(0, 50) + (qrData.length > 50 ? '...' : '') : 'N/A',
+        timestamp: errorTime.toISOString()
+      }
+      setErrorLog(prev => [newErrorLog, ...prev].slice(0, 50))
+      
+      // Just show "Invalid" in modal
+      setErrorDetails('Invalid')
+      setShowErrorModal(true)
+      setCountdown(8)
+      
+      // Start countdown for error modal
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+      
+      // Auto-close error modal (8 seconds)
+      if (modalTimer) {
+        clearTimeout(modalTimer)
+      }
+      const timer = setTimeout(() => {
+        setShowErrorModal(false)
+      }, 8000)
+      setModalTimer(timer)
+      
       // Resume scanning on error
       if (html5QrCodeRef.current && scanning) {
         try {
@@ -222,11 +314,56 @@ const QRScanner = () => {
     }
   }
 
+  const closeResultModal = () => {
+    setShowResultModal(false)
+    if (modalTimer) {
+      clearTimeout(modalTimer)
+      setModalTimer(null)
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current)
+      countdownRef.current = null
+    }
+  }
+
+  const closeErrorModal = () => {
+    setShowErrorModal(false)
+    setErrorDetails('')
+    if (modalTimer) {
+      clearTimeout(modalTimer)
+      setModalTimer(null)
+    }
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current)
+      countdownRef.current = null
+    }
+  }
+
+  const clearErrorLog = () => {
+    setErrorLog([])
+    setShowErrorLog(false)
+  }
+
+  const deleteError = (errorId) => {
+    setErrorLog(prev => prev.filter(error => error.id !== errorId))
+  }
+
+  useEffect(() => {
+    return () => {
+      if (modalTimer) {
+        clearTimeout(modalTimer)
+      }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+      }
+    }
+  }, [modalTimer])
+
   return (
     <div className="qr-scanner-page">
       <div className="page-header">
-        <h1>QR Code Scanner</h1>
-        <p>Scan vehicle QR codes to record entry and exit</p>
+        <h1>QR Scanner</h1>
+        <p>Scan vehicle QR codes</p>
       </div>
 
       <div className="scanner-container">
@@ -236,19 +373,29 @@ const QRScanner = () => {
               {scanning ? (
                 <>
                   <div className="status-dot status-active"></div>
-                  <span>Scanning...</span>
+                  <span>Active</span>
                 </>
               ) : (
                 <>
                   <div className="status-dot status-inactive"></div>
-                  <span>Scanner Inactive</span>
+                  <span>Inactive</span>
                 </>
               )}
             </div>
             <div className="scanner-status-right">
               <div className="scan-count">
-                <span>Scans Today: {scanCount}</span>
+                <span>{scanCount} scan{scanCount !== 1 ? 's' : ''}</span>
               </div>
+              {errorLog.length > 0 && (
+                <button
+                  className="error-log-btn"
+                  onClick={() => setShowErrorLog(true)}
+                  title={`View error log (${errorLog.length} errors)`}
+                >
+                  <FiAlertCircle />
+                  <span className="error-count">{errorLog.length}</span>
+                </button>
+              )}
               <div className="camera-menu-wrapper" ref={menuRef}>
                 <button 
                   className="camera-settings-btn"
@@ -301,8 +448,7 @@ const QRScanner = () => {
             {!scanning && (
               <div className="scanner-placeholder">
                 <FiCamera className="placeholder-icon" />
-                <p>Camera not active</p>
-                <p className="placeholder-hint">Click "Start Scanner" to begin</p>
+                <p>Scanner inactive</p>
               </div>
             )}
           </div>
@@ -311,12 +457,12 @@ const QRScanner = () => {
             {!scanning ? (
               <button className="btn-primary" onClick={startScanning}>
                 <FiCamera className="btn-icon" />
-                Start Scanner
+                Start
               </button>
             ) : (
               <button className="btn-danger" onClick={stopScanning}>
                 <FiXCircle className="btn-icon" />
-                Stop Scanner
+                Stop
               </button>
             )}
             {scanning && (
@@ -332,67 +478,215 @@ const QRScanner = () => {
             )}
           </div>
         </div>
+      </div>
 
-        <div className="scan-results">
-          <div className="results-card">
-            <h2>Scan Results</h2>
-            
-            {error && (
-              <div className="alert alert-error">
-                <FiAlertCircle className="alert-icon" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {success && (
-              <div className="alert alert-success">
-                <FiCheckCircle className="alert-icon" />
-                <span>{success}</span>
-              </div>
-            )}
-
-            {lastScan && (
-              <div className="scan-details">
-                <div className="detail-row">
-                  <span className="detail-label">Plate Number:</span>
-                  <span className="detail-value">{lastScan.plate_number}</span>
+      {showResultModal && lastScan && (
+        <div className="result-modal-overlay" onClick={closeResultModal}>
+          <div className="result-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <div className="modal-icon-wrapper">
+                  <FiCheck className="modal-icon" />
                 </div>
-                <div className="detail-row">
-                  <span className="detail-label">Vehicle Type:</span>
-                  <span className="detail-value">{lastScan.vehicle_type}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Owner:</span>
-                  <span className="detail-value">{lastScan.owner_name}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Entry Type:</span>
-                  <span className={`detail-value entry-type-${lastScan.entry_type}`}>
-                    {lastScan.entry_type.toUpperCase()}
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Time:</span>
-                  <span className="detail-value">
-                    {new Date(lastScan.timestamp).toLocaleString()}
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Location:</span>
-                  <span className="detail-value">{lastScan.location}</span>
+                <div>
+                  <h2>Scan Successful</h2>
+                  <p className="modal-subtitle">{success}</p>
                 </div>
               </div>
-            )}
+              <button className="modal-close-btn" onClick={closeResultModal}>
+                <FiX />
+              </button>
+            </div>
 
-            {!error && !success && !lastScan && (
-              <div className="empty-results">
-                <p>No scans yet</p>
-                <p className="hint">Start the scanner and scan a QR code</p>
+            <div className="scan-details">
+              <div className="vehicle-image-container">
+                {lastScan.vehicle_image && lastScan.vehicle_image.length > 0 ? (
+                  <img 
+                    src={lastScan.vehicle_image} 
+                    alt={`${lastScan.plate_number} - Vehicle`}
+                    className="vehicle-image"
+                    loading="eager"
+                  />
+                ) : (
+                  <div className="no-image-placeholder">
+                    <FiImage className="no-image-icon" />
+                    <span className="no-image-text">No Vehicle Image</span>
+                  </div>
+                )}
               </div>
-            )}
+
+              <div className="main-info-card">
+                <div className={`entry-type-badge entry-type-${lastScan.entry_type}`}>
+                  <div className="entry-type-icon">
+                    {lastScan.entry_type === 'in' ? <FiCheckCircle /> : <FiXCircle />}
+                  </div>
+                  <div className="entry-type-text">
+                    <span className="entry-type-label">
+                      {lastScan.entry_type === 'in' ? 'ENTRY' : 'EXIT'}
+                    </span>
+                    <span className="entry-type-time">
+                      {new Date(lastScan.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="plate-number-display">
+                  <FiShield className="plate-icon" />
+                  <span className="plate-number">{lastScan.plate_number}</span>
+                </div>
+              </div>
+
+              <div className="info-grid">
+                <div className="info-card">
+                  <FiTruck className="info-icon" />
+                  <div className="info-content">
+                    <span className="info-label">Vehicle Type</span>
+                    <span className="info-value">{lastScan.vehicle_type}</span>
+                  </div>
+                </div>
+
+                <div className="info-card">
+                  <FiShield className="info-icon" />
+                  <div className="info-content">
+                    <span className="info-label">Owner</span>
+                    <span className="info-value">{lastScan.owner_name}</span>
+                  </div>
+                </div>
+
+                <div className="info-card">
+                  <FiClock className="info-icon" />
+                  <div className="info-content">
+                    <span className="info-label">Date & Time</span>
+                    <span className="info-value">{new Date(lastScan.timestamp).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="info-card">
+                  <FiMapPin className="info-icon" />
+                  <div className="info-content">
+                    <span className="info-label">Location</span>
+                    <span className="info-value">{lastScan.location}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <div className="countdown-indicator">
+                <div className="countdown-bar" style={{ width: `${(countdown / 10) * 100}%` }}></div>
+              </div>
+              <button className="btn-primary" onClick={closeResultModal}>
+                Close
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {showErrorModal && (
+        <div className="error-modal-overlay" onClick={closeErrorModal}>
+          <div className="error-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header modal-header-error">
+              <div className="modal-title-group">
+                <div className="modal-icon-wrapper modal-icon-wrapper-error">
+                  <FiAlertCircle className="modal-icon" />
+                </div>
+                <div>
+                  <h2>Scan Failed</h2>
+                  <p className="modal-subtitle">Unable to process QR code</p>
+                </div>
+              </div>
+              <button className="modal-close-btn modal-close-btn-error" onClick={closeErrorModal}>
+                <FiX />
+              </button>
+            </div>
+
+            <div className="error-details">
+              <div className="error-icon-wrapper">
+                <FiXCircle className="error-icon" />
+              </div>
+              <p className="error-message">{errorDetails}</p>
+              <p className="error-subtitle">Invalid QR code detected</p>
+            </div>
+
+            <div className="modal-footer">
+              <div className="countdown-indicator">
+                <div className="countdown-bar countdown-bar-error" style={{ width: `${(countdown / 8) * 100}%` }}></div>
+              </div>
+              <button className="btn-primary" onClick={closeErrorModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showErrorLog && (
+        <div className="error-log-overlay" onClick={() => setShowErrorLog(false)}>
+          <div className="error-log-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <div className="modal-icon-wrapper">
+                  <FiAlertCircle className="modal-icon" />
+                </div>
+                <div>
+                  <h2>Error Log</h2>
+                  <p className="modal-subtitle">{errorLog.length} error{errorLog.length !== 1 ? 's' : ''} recorded</p>
+                </div>
+              </div>
+              <button className="modal-close-btn" onClick={() => setShowErrorLog(false)}>
+                <FiX />
+              </button>
+            </div>
+
+            <div className="error-log-content">
+              {errorLog.length === 0 ? (
+                <div className="no-errors">
+                  <FiCheckCircle className="no-errors-icon" />
+                  <p>No errors recorded</p>
+                </div>
+              ) : (
+                <div className="error-log-list">
+                  {errorLog.map((error) => (
+                    <div key={error.id} className="error-log-item">
+                      <div className="error-log-header">
+                        <div className="error-log-time">
+                          <FiClock />
+                          <span>{new Date(error.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div className="error-log-actions">
+                          <div className="error-log-id">#{error.id}</div>
+                          <button
+                            className="error-delete-btn"
+                            onClick={() => deleteError(error.id)}
+                            title="Delete this error"
+                          >
+                            <FiX />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="error-log-message">
+                        <strong>Error:</strong> {error.message}
+                      </div>
+                      <div className="error-log-qrcode">
+                        <strong>QR Data:</strong> {error.qrData}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => {
+                setErrorLog([])
+                setShowErrorLog(false)
+              }}>
+                Clear Log
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

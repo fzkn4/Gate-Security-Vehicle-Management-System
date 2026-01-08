@@ -4,3 +4,4 @@ backend/__pycache__/
 frontend/node_modules/
 backend/instance/gate_security.db
 AGENTS.md
+frontend/dist/

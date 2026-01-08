@@ -577,6 +577,9 @@ def delete_vehicle(vehicle_id):
 @jwt_required()
 def scan_qr_code():
     try:
+        current_user_id = int(get_jwt_identity())
+        current_user = db.session.get(User, current_user_id)
+        print(f"Scan request from user: {current_user.username if current_user else 'Unknown'} (ID: {current_user_id})")
         data = request.get_json()
         if not data:
             return jsonify({'message': 'No data provided'}), 400
@@ -608,10 +611,12 @@ def scan_qr_code():
             print(f"No client timestamp provided, using server time: {scan_timestamp}")
         
         # Log the received QR data for debugging
-        print(f"Received QR data: {qr_data[:100]}...")  # Log first 100 chars
+        print(f"Received QR data: {qr_data[:200]}...")  # Log first 200 chars
+        print(f"QR data length: {len(qr_data)}")
         
         # Check if it starts with VEHICLE:
         if not qr_data.startswith('VEHICLE:'):
+            print(f"ERROR: QR data does not start with 'VEHICLE:'. Actual start: {qr_data[:50]}")
             return jsonify({
                 'message': f'Invalid QR code format. Expected format: VEHICLE:ID:PLATE or VEHICLE:PLATE. Received: {qr_data[:50]}'
             }), 400
@@ -665,6 +670,8 @@ def scan_qr_code():
         db.session.add(entry)
         db.session.commit()
         
+        vehicle_image = VehicleImage.query.filter_by(vehicle_id=vehicle.id).first()
+        
         return jsonify({
             'message': f'Vehicle {entry_type.upper()} recorded successfully',
             'entry': {
@@ -675,7 +682,8 @@ def scan_qr_code():
                 'owner_name': vehicle.owner.full_name,
                 'entry_type': entry_type,
                 'timestamp': entry.timestamp.isoformat(),
-                'location': entry.location
+                'location': entry.location,
+                'vehicle_image': vehicle_image.image_data if vehicle_image else None
             }
         }), 200
         
