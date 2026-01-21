@@ -66,13 +66,8 @@ const Login = () => {
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? 'Logging in...' : 'Login'}
           </button>
-        </form>
-        
-        <div className="login-footer">
-          <p>Admin access only</p>
-          <p className="login-hint">Default: admin / admin123</p>
-        </div>
-      </div>
+         </form>
+       </div>
     </div>
   )
 }
