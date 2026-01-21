@@ -10,6 +10,7 @@ import base64
 import os
 from dotenv import load_dotenv
 import json
+import requests
 
 load_dotenv()
 
@@ -669,10 +670,41 @@ def scan_qr_code():
         
         db.session.add(entry)
         db.session.commit()
-        
+
+        # Control ESP32 gate automation
+        esp32_ip = os.getenv('ESP32_IP')
+        warning_message = None
+
+        if esp32_ip:
+            try:
+                # Determine gate action based on entry type
+                gate_action = 'open' if entry_type == 'in' else 'close'
+                esp32_url = f"{esp32_ip}/{gate_action}"
+
+                print(f"Sending gate control request to ESP32: {esp32_url}")
+
+                # Send HTTP POST request to ESP32 with 5-second timeout
+                response = requests.post(esp32_url, timeout=5)
+
+                if response.status_code == 200:
+                    print(f"ESP32 gate {gate_action} command sent successfully")
+                else:
+                    print(f"ESP32 responded with status code: {response.status_code}")
+                    warning_message = f"Gate control failed (ESP32 responded with status {response.status_code})"
+
+            except requests.exceptions.RequestException as e:
+                print(f"Failed to communicate with ESP32: {str(e)}")
+                warning_message = "Gate control unavailable (ESP32 unreachable)"
+            except Exception as e:
+                print(f"Unexpected error controlling gate: {str(e)}")
+                warning_message = f"Gate control error: {str(e)}"
+        else:
+            print("ESP32_IP not configured - gate control disabled")
+            warning_message = "Gate control not configured"
+
         vehicle_image = VehicleImage.query.filter_by(vehicle_id=vehicle.id).first()
-        
-        return jsonify({
+
+        response_data = {
             'message': f'Vehicle {entry_type.upper()} recorded successfully',
             'entry': {
                 'id': entry.id,
@@ -688,7 +720,12 @@ def scan_qr_code():
                 'location': entry.location,
                 'vehicle_image': vehicle_image.image_data if vehicle_image else None
             }
-        }), 200
+        }
+
+        if warning_message:
+            response_data['warning'] = warning_message
+
+        return jsonify(response_data), 200
         
     except Exception as e:
         print(f"Error in scan_qr_code: {str(e)}")

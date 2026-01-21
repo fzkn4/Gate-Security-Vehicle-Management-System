@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Html5Qrcode } from 'html5-qrcode'
 import axios from 'axios'
-import { FiCamera, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiSettings, FiMoreVertical, FiX, FiClock, FiMapPin, FiTruck, FiShield, FiCheck, FiImage } from 'react-icons/fi'
+import { FiCamera, FiCheckCircle, FiXCircle, FiAlertCircle, FiRefreshCw, FiSettings, FiMoreVertical, FiX, FiClock, FiMapPin, FiTruck, FiShield, FiCheck, FiImage, FiUser, FiHash, FiTag, FiCalendar } from 'react-icons/fi'
 import './QRScanner.css'
 
 const QRScanner = () => {
@@ -9,6 +9,7 @@ const QRScanner = () => {
   const [lastScan, setLastScan] = useState(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [warning, setWarning] = useState('')
   const [scanCount, setScanCount] = useState(0)
   const [cameras, setCameras] = useState([])
   const [selectedCameraId, setSelectedCameraId] = useState(null)
@@ -235,9 +236,10 @@ const QRScanner = () => {
       })
       
       setSuccess(response.data.message)
+      setWarning(response.data.warning || '')
       setLastScan(response.data.entry)
       setScanCount(prev => prev + 1)
-      
+
       // Clear any previous error
       setErrorDetails('')
       setShowErrorModal(false)
@@ -492,9 +494,11 @@ const QRScanner = () => {
       {showResultModal && lastScan && (
         <div className="result-modal-overlay" onClick={closeResultModal}>
           <div className="result-modal result-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="result-modal-header">
-              <div className="result-plate-header">
-                <div className="result-plate-number">{lastScan.plate_number}</div>
+            {/* Compact Header */}
+            <div className="result-header-section">
+              <div className="result-plate-display">
+                <FiHash className="result-plate-icon" />
+                <span className="result-plate-number">{lastScan.plate_number}</span>
                 <div className={`result-entry-badge entry-${lastScan.entry_type}`}>
                   {lastScan.entry_type === 'in' ? 'ENTRY' : 'EXIT'}
                 </div>
@@ -504,10 +508,50 @@ const QRScanner = () => {
               </button>
             </div>
 
+            {/* Vehicle Information Card */}
+            <div className="result-info-card">
+              <div className="result-info-row">
+                <FiTruck className="result-info-icon" />
+                <div className="result-info-content">
+                  <div className="result-info-label">Vehicle Type</div>
+                  <div className="result-info-value">{lastScan.vehicle_type}</div>
+                </div>
+              </div>
+
+              {lastScan.make && lastScan.model && (
+                <div className="result-info-row">
+                  <FiSettings className="result-info-icon" />
+                  <div className="result-info-content">
+                    <div className="result-info-label">Make & Model</div>
+                    <div className="result-info-value">{lastScan.make} {lastScan.model}</div>
+                  </div>
+                </div>
+              )}
+
+              {lastScan.color && (
+                <div className="result-info-row">
+                  <FiTag className="result-info-icon" />
+                  <div className="result-info-content">
+                    <div className="result-info-label">Color</div>
+                    <div className="result-info-value">{lastScan.color}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="result-info-row">
+                <FiUser className="result-info-icon" />
+                <div className="result-info-content">
+                  <div className="result-info-label">Owner</div>
+                  <div className="result-info-value">{lastScan.owner_name}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Vehicle Image */}
             <div className="result-image-container">
               {lastScan.vehicle_image && lastScan.vehicle_image.length > 0 ? (
-                <img 
-                  src={lastScan.vehicle_image} 
+                <img
+                  src={lastScan.vehicle_image}
                   alt={`${lastScan.plate_number} - Vehicle`}
                   className="result-vehicle-image"
                   loading="eager"
@@ -515,42 +559,41 @@ const QRScanner = () => {
               ) : (
                 <div className="result-no-image">
                   <FiImage className="result-no-image-icon" />
-                  <span>No Vehicle Image</span>
+                  <span>No Image</span>
                 </div>
               )}
             </div>
 
-            <div className="result-details">
-              <div className="result-detail-item">
-                <span className="result-detail-label">Vehicle Type:</span>
-                <span className="result-detail-value">{lastScan.vehicle_type}</span>
-              </div>
-              {lastScan.make && lastScan.model && (
-                <div className="result-detail-item">
-                  <span className="result-detail-label">Make/Model:</span>
-                  <span className="result-detail-value">{lastScan.make} {lastScan.model}</span>
+            {/* Entry Details Card */}
+            <div className="result-info-card">
+              <div className="result-info-row">
+                <FiClock className="result-info-icon" />
+                <div className="result-info-content">
+                  <div className="result-info-label">Timestamp</div>
+                  <div className="result-info-value">{new Date(lastScan.timestamp).toLocaleString()}</div>
                 </div>
-              )}
-              {lastScan.color && (
-                <div className="result-detail-item">
-                  <span className="result-detail-label">Color:</span>
-                  <span className="result-detail-value">{lastScan.color}</span>
+              </div>
+
+              <div className="result-info-row">
+                <FiMapPin className="result-info-icon" />
+                <div className="result-info-content">
+                  <div className="result-info-label">Location</div>
+                  <div className="result-info-value">{lastScan.location}</div>
                 </div>
-              )}
-              <div className="result-detail-item">
-                <span className="result-detail-label">Owner:</span>
-                <span className="result-detail-value">{lastScan.owner_name}</span>
-              </div>
-              <div className="result-detail-item">
-                <span className="result-detail-label">Date & Time:</span>
-                <span className="result-detail-value">{new Date(lastScan.timestamp).toLocaleString()}</span>
-              </div>
-              <div className="result-detail-item">
-                <span className="result-detail-label">Location:</span>
-                <span className="result-detail-value">{lastScan.location}</span>
               </div>
             </div>
 
+            {/* Warning Section */}
+            {warning && (
+              <div className="result-warning">
+                <div className="warning-icon-wrapper">
+                  <FiAlertCircle className="warning-icon" />
+                </div>
+                <p className="warning-message">{warning}</p>
+              </div>
+            )}
+
+            {/* Footer */}
             <div className="result-modal-footer">
               <div className="result-countdown-indicator">
                 <div className="result-countdown-bar" style={{ width: `${(countdown / 30) * 100}%` }}></div>

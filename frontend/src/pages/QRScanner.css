@@ -388,6 +388,43 @@
   box-shadow: 0 4px 12px rgba(255, 76, 76, 0.4);
 }
 
+.result-warning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #FEF3C7;
+  border: 1px solid #F59E0B;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  background: #F59E0B;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.warning-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: white;
+}
+
+.warning-message {
+  font-size: 13px;
+  font-weight: 500;
+  color: #92400E;
+  line-height: 1.4;
+  margin: 0;
+}
+
 .result-modal-overlay {
   position: fixed;
   top: 0;
@@ -398,10 +435,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 10000;
   backdrop-filter: blur(2px);
   animation: fadeIn 0.3s ease;
-  padding: 20px;
+  padding: 16px;
+}
+
+.result-modal {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  animation: slideUp 0.3s ease;
+}
+
+.result-modal-card {
+  padding: 16px;
 }
 
 @keyframes fadeIn {
@@ -533,36 +586,91 @@
 }
 
 /* Result Modal Card Styles */
-.result-modal-header {
+.result-header-section {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 24px 28px;
-  border-bottom: 2px solid #E5E7EB;
-  background: #FFFFFF;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-.result-plate-header {
+.result-plate-display {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
+}
+
+.result-plate-icon {
+  width: 18px;
+  height: 18px;
+  color: #6b7280;
 }
 
 .result-plate-number {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
-  color: #111827;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  color: #1f2937;
+  letter-spacing: -0.3px;
 }
 
 .result-entry-badge {
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Info Cards */
+.result-info-card {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.result-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.result-info-row:last-child {
+  margin-bottom: 0;
+}
+
+.result-info-icon {
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.result-info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-info-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.result-info-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.4;
 }
 
 .result-entry-badge.entry-in {
@@ -605,27 +713,36 @@
 
 .result-image-container {
   width: 100%;
-  height: 450px;
-  border-radius: 0;
-  overflow: visible;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 2px solid #E5E7EB;
   background: #F9FAFB;
-  border: none;
-  border-top: 1px solid #E5E7EB;
-  border-bottom: 1px solid #E5E7EB;
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
 }
 
 .result-vehicle-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
-  display: block;
-  border-radius: 12px;
+  border-radius: 6px;
+}
+
+.result-no-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #6B7280;
+}
+
+.result-no-image-icon {
+  width: 32px;
+  height: 32px;
+  opacity: 0.6;
 }
 
 .result-no-image {
@@ -690,12 +807,12 @@
 }
 
 .result-modal-footer {
+  margin-top: 16px;
+  padding: 12px 0 0 0;
+  border-top: 1px solid #E5E7EB;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 28px;
-  border-top: 2px solid #E5E7EB;
-  background: #FFFFFF;
+  gap: 12px;
 }
 
 .result-countdown-indicator {
@@ -1255,12 +1372,11 @@
 
   .result-modal {
     max-width: 95%;
-    max-height: 95vh;
+    max-height: 90vh;
   }
 
   .result-modal-card {
-    max-width: 95%;
-    max-height: 95vh;
+    padding: 12px;
   }
 
   .error-modal {
