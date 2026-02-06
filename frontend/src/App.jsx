@@ -31,6 +31,7 @@ function AppRoutes() {
         </ProtectedRoute>
       }>
         <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="scanner" element={<QRScanner />} />
         <Route path="users" element={<Users />} />
         <Route path="vehicles" element={<Vehicles />} />
