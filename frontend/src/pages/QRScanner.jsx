@@ -456,6 +456,17 @@ const QRScanner = () => {
 
           <div className="scanner-wrapper">
             <div id="reader" className="qr-reader"></div>
+            {scanning && (
+              <div className="qr-scanner-overlay">
+                <div className="qr-scanner-target">
+                  <div className="qr-corner top-left"></div>
+                  <div className="qr-corner top-right"></div>
+                  <div className="qr-corner bottom-left"></div>
+                  <div className="qr-corner bottom-right"></div>
+                  <div className="qr-scan-line"></div>
+                </div>
+              </div>
+            )}
             {!scanning && (
               <div className="scanner-placeholder">
                 <FiCamera className="placeholder-icon" />
